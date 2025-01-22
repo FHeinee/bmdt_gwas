@@ -42,8 +42,12 @@ def manhattan_plot(df: pd.DataFrame):
         chromosome_data = chromosome_data.sort_values(by='position')
         df.loc[chromosome_data.index, 'cumulative_position'] = chromosome_data['position'] + cumulative_offset
 
-        cumulative_offset += chromosome_data['position'].max()
-        #tick_positions.append((chromosome_data['cumulative_position'].iloc[0] + chromosome_data['cumulative_position'].iloc[-1]) / 2)
+        maximum_position = chromosome_data['position'].max()
+
+        tick_position = (cumulative_offset + cumulative_offset + maximum_position) / 2
+        tick_positions.append(tick_position)
+
+        cumulative_offset += maximum_position
 
     plt.figure(figsize=(12,6))
     for chromosome_index, chromosome in enumerate(unique_chromosomes):
@@ -60,8 +64,7 @@ def manhattan_plot(df: pd.DataFrame):
     significance_value = -np.log10(5e-8)
     plt.axhline(significance_value, color='red', linestyle='--', label=f'Significance ({significance_value})')
 
-    # Add labels and title
-    #plt.xticks(ticks=tick_positions, labels=unique_chromosomes)
+    plt.xticks(ticks=tick_positions, labels=unique_chromosomes)
     plt.xlabel('Chromosome')
     plt.ylabel('-log10(p-value)')
     plt.title('GWAS')
