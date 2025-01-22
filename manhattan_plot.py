@@ -30,10 +30,10 @@ def read_all_results():
 
     return combined_df
 
-
 def manhattan_plot(df: pd.DataFrame):
     cumulative_offset = 0
     tick_positions = []
+    peak_snps = []
     unique_chromosomes = sorted(df['chromosome'].unique())
     chromosome_colors = ['#1f77b4', '#ff7f0e']
 
@@ -47,7 +47,19 @@ def manhattan_plot(df: pd.DataFrame):
         tick_position = (cumulative_offset + cumulative_offset + maximum_position) / 2
         tick_positions.append(tick_position)
 
+        peak_snp_index = chromosome_data['log_pvalue'].idxmax()
+        peak_snp = chromosome_data.loc[peak_snp_index]
+        peak_snps.append({
+            'snp': peak_snp['snp'],
+            'log_pvalue': peak_snp['log_pvalue'],
+            'position': peak_snp['position'],
+            'cumulative_position': peak_snp['position'] + cumulative_offset,
+        })
+
         cumulative_offset += maximum_position
+
+    peak_snps_df = pd.DataFrame(peak_snps).sort_values(by='log_pvalue', ascending=False)
+    first_3_peak_snps = peak_snps_df.head(3)
 
     plt.figure(figsize=(12,6))
     for chromosome_index, chromosome in enumerate(unique_chromosomes):
@@ -63,6 +75,9 @@ def manhattan_plot(df: pd.DataFrame):
 
     significance_value = -np.log10(5e-8)
     plt.axhline(significance_value, color='red', linestyle='--', label=f'Significance ({significance_value})')
+
+    for index, row in first_3_peak_snps.iterrows():
+        plt.text(row['cumulative_position'], row['log_pvalue'], f"{row['snp']}", fontsize=8)
 
     plt.xticks(ticks=tick_positions, labels=unique_chromosomes)
     plt.xlabel('Chromosome')
