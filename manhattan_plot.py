@@ -3,13 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def read_chromosome_results(chromosome: int) -> pd.DataFrame:
-    filename = f'./data/outputs/synthetic_small_v1_chr-{str(chromosome)}.csv'
+    filename = f'./data/full_EUR/synthetic_v1_chr-{str(chromosome)}.csv'
     df = pd.read_csv(filename, header=None)
     df.columns = ['snp', 'pvalue']
 
-    df['chromosome'] = df['snp'].str.split(':').str[0]
-    df['position'] = df['snp'].str.split(':').str[1]
-    df['position'] = df['position'].astype(int)
+    df['chromosome'] = df['snp'].str.split(':').str[0].str[3:].astype(int)
+    df['position'] = df['snp'].str.split(':').str[1].astype(int)
     df['log_pvalue'] = -np.log10(df['pvalue'])
 
     return df
