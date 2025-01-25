@@ -101,6 +101,14 @@ def read_bed_file(bed_path: str, total_sample_count: int, sample_offset: int, sa
 
             yield samples
 
+def calculate_minor_allele_frequency(snp: list[int]) -> float:
+    total_allele_count = len(snp) * 2
+    first_allele_count = snp.count(0) * 2 + snp.count(1)  # homozygous for first allele + heterozygous
+    second_allele_count = snp.count(2) * 2 + snp.count(1)  # homozygous for second allele + heterozygous
+    minor_allele_count = min(first_allele_count, second_allele_count)
+
+    return minor_allele_count / total_allele_count
+
 def process_gwas(prefix: str, ancestry: str | None = None):
     bim_path = prefix + '.bim'
     bed_path = prefix + '.bed'
@@ -136,14 +144,6 @@ def process_gwas(prefix: str, ancestry: str | None = None):
     for snp_index, snp in enumerate(read_bed_file(bed_path, snp_count, sample_offset, sample_count)):
         liability =np.array(liability, dtype='float')
 
-        total_allele_count = len(snp) * 2
-        first_allele_count = snp.count(0) * 2 + snp.count(1) # homozygous for first allele + heterozygous
-        second_allele_count = snp.count(2) * 2 + snp.count(1) # homozygous for second allele + heterozygous
-        minor_allele_count = min(first_allele_count, second_allele_count)
-
-        minor_allele_frequency = minor_allele_count / total_allele_count
-        maf_threshold = 0.05
-
         # debugging
         print(f'SNP {snp_index} MAF: {minor_allele_frequency}')
 
@@ -160,5 +160,7 @@ def process_gwas(prefix: str, ancestry: str | None = None):
         if snp_index % 1000 == 0:
             print(".", end='', flush=True)
 
+        maf = calculate_minor_allele_frequency(snp)
+
         with (open(f'outputs/{prefix}.csv', 'a')) as file:
-            file.write(f'{snp_name},{pvalue}\n')
+            file.write(f'{snp_name},{pvalue},{maf}\n')
