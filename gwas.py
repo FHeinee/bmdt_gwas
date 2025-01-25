@@ -136,6 +136,21 @@ def process_gwas(prefix: str, ancestry: str | None = None):
     for snp_index, snp in enumerate(read_bed_file(bed_path, snp_count, sample_offset, sample_count)):
         liability =np.array(liability, dtype='float')
 
+        total_allele_count = len(snp) * 2
+        first_allele_count = snp.count(0) * 2 + snp.count(1) # homozygous for first allele + heterozygous
+        second_allele_count = snp.count(2) * 2 + snp.count(1) # homozygous for second allele + heterozygous
+        minor_allele_count = min(first_allele_count, second_allele_count)
+
+        minor_allele_frequency = minor_allele_count / total_allele_count
+        maf_threshold = 0.05
+
+        # debugging
+        print(f'SNP {snp_index} MAF: {minor_allele_frequency}')
+
+        if minor_allele_frequency < maf_threshold:
+            print(f'Skipping SNP {snp_index} due to MAF {minor_allele_frequency}')
+            continue
+
         snp_name = bim_df.iloc[snp_index]['SNP']
         if len(set(snp)) == 1:
             print(f'All samples are the same for SNP {snp_name}')
