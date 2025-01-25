@@ -1,7 +1,7 @@
 import pandas as pd 
 import numpy as np
 import math
-from scipy.stats import linregress
+from scipy.stats import linregress, chisquare
 
 pheno_path = './synthetic_v1.pheno7'
 sample_path = './synthetic_v1.sample'
@@ -49,7 +49,7 @@ def get_bim_df(bim_path:str):
     return bim_df
 
 
-def decode_binary_string(byte_string) -> list[str]:
+def decode_binary_string(byte_string) -> list[int]:
     # See https://www.cog-genomics.org/plink/1.9/formats#bed 
     results = []
     binary_rep = f"{byte_string:08b}"
@@ -57,13 +57,13 @@ def decode_binary_string(byte_string) -> list[str]:
     for i in reversed(range(1, 8, 2)):
         bit_pair = binary_rep[i] + binary_rep[i-1]  # Get the bit pair in order
         if bit_pair == "00":
-            results.append(0)
+            results.append(0) # homozygous for first allele
         elif bit_pair == "01":
-            results.append(1)
+            results.append(1) # heterozygous
         elif bit_pair == "11":
-            results.append(2)
+            results.append(2) # homozygous for second allele
         elif bit_pair == "10":
-            results.append(3)
+            results.append(3) # missing genotype (should never happen with our synthetic data)
         else:
             raise ValueError(f"Invalid bit pair: {bit_pair}")
     return results
@@ -109,6 +109,25 @@ def calculate_minor_allele_frequency(snp: list[int]) -> float:
 
     return minor_allele_count / total_allele_count
 
+def calculate_hwe_pvalue(snp: list[int]) -> float:
+    total_samples = len(snp)
+    first_allele_homozygous_samples = snp.count(0)
+    heterozygous_samples = snp.count(1)
+    second_allele_homozygous_samples = snp.count(2)
+
+    p = (2 * second_allele_homozygous_samples + heterozygous_samples) / (2 * total_samples)
+    q = 1 - p
+
+    expected_first_allele_homozygous_samples = p**2 * total_samples
+    expected_heterozygous_samples = 2 * p * q * total_samples
+    expected_second_allele_homozygous_samples = q**2 * total_samples
+
+    observed = [second_allele_homozygous_samples, heterozygous_samples, first_allele_homozygous_samples]
+    expected = [expected_second_allele_homozygous_samples, expected_heterozygous_samples, expected_first_allele_homozygous_samples]
+    chi_squared, p_value = chisquare(f_obs=observed, f_exp=expected)
+
+    return p_value
+
 def process_gwas(prefix: str, ancestry: str | None = None):
     bim_path = prefix + '.bim'
     bed_path = prefix + '.bed'
@@ -144,13 +163,6 @@ def process_gwas(prefix: str, ancestry: str | None = None):
     for snp_index, snp in enumerate(read_bed_file(bed_path, snp_count, sample_offset, sample_count)):
         liability =np.array(liability, dtype='float')
 
-        # debugging
-        print(f'SNP {snp_index} MAF: {minor_allele_frequency}')
-
-        if minor_allele_frequency < maf_threshold:
-            print(f'Skipping SNP {snp_index} due to MAF {minor_allele_frequency}')
-            continue
-
         snp_name = bim_df.iloc[snp_index]['SNP']
         if len(set(snp)) == 1:
             print(f'All samples are the same for SNP {snp_name}')
@@ -161,6 +173,7 @@ def process_gwas(prefix: str, ancestry: str | None = None):
             print(".", end='', flush=True)
 
         maf = calculate_minor_allele_frequency(snp)
+        hwe_pvalue = calculate_hwe_pvalue(snp)
 
         with (open(f'outputs/{prefix}.csv', 'a')) as file:
-            file.write(f'{snp_name},{pvalue},{maf}\n')
+            file.write(f'{snp_name},{pvalue},{maf},{hwe_pvalue}\n')
