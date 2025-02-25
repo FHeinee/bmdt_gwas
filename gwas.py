@@ -261,7 +261,8 @@ def read_bed_file(bed_path: str, total_sample_count: int, sample_offset: int, sa
 
         # 4 samples are stored in 1 byte, so we need to read total_sample_count/4 bytes
         bytes_per_snp = int(total_sample_count/4)
-        
+
+       
         # Read one entire snp at a time
         while (bytes_of_snp := file.read(bytes_per_snp)):
             samples = []
@@ -300,9 +301,9 @@ def calculate_hwe_pvalue(snp: list[int]) -> float:
     p = (2 * second_allele_homozygous_samples + heterozygous_samples) / (2 * total_samples)
     q = 1 - p
 
-    expected_first_allele_homozygous_samples = p**2 * total_samples
+    expected_second_allele_homozygous_samples = p**2 * total_samples
     expected_heterozygous_samples = 2 * p * q * total_samples
-    expected_second_allele_homozygous_samples = q**2 * total_samples
+    expected_first_allele_homozygous_samples = q**2 * total_samples
 
     observed = [second_allele_homozygous_samples, heterozygous_samples, first_allele_homozygous_samples]
     expected = [expected_second_allele_homozygous_samples, expected_heterozygous_samples, expected_first_allele_homozygous_samples]
@@ -359,7 +360,7 @@ def process_gwas(prefix: str, ancestry: str | None = None):
             hwe_pvalue = calculate_hwe_pvalue(snp)
         except:
             print(f"{snp_name} somehow no hwe")
-            hwe_pvalue = 0
+            hwe_pvalue = -1.0
 
-        with (open(f'outputs/{prefix}.csv', 'a')) as file:
+        with (open(f'outputs_EUR2/{prefix}.csv', 'a')) as file:
             file.write(f'{snp_name},{pvalue},{maf},{hwe_pvalue}\n')
