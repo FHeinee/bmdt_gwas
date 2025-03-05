@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-def read_chromosome_results(chromosome: int) -> pd.DataFrame:
-    filename = f'./data/full_EUR/synthetic_v1_chr-{str(chromosome)}.csv'
+def read_chromosome_results(chromosome: int, path: str, preprocessed: bool = False) -> pd.DataFrame:
+    filename = path + f'/synthetic_v1_chr-{str(chromosome)}.csv'
     df = pd.read_csv(filename, header=None)
-    df.columns = ['snp', 'pvalue']
+    df.columns = ['snp', 'pvalue', 'maf', 'hwe']if preprocessed else['snp', 'pvalue']
 
     df['chromosome'] = df['snp'].str.split(':').str[0].str[3:].astype(int)
     df['position'] = df['snp'].str.split(':').str[1].astype(int)
@@ -13,7 +13,7 @@ def read_chromosome_results(chromosome: int) -> pd.DataFrame:
 
     return df
 
-def read_all_results():
+def read_all_results(path: str, preprocessed:bool = False, maf_threshold:float = 0.05, hwe_threshold:float = 1e-6):
     combined_df = pd.DataFrame()
 
     # read all data for chromosomes 1 - 22 (end is exclusive)
@@ -23,14 +23,19 @@ def read_all_results():
         print(f"Reading data for chromosome {str(chromosome)}")
         combined_df = pd.concat([
             combined_df,
-            read_chromosome_results(chromosome)
+            read_chromosome_results(chromosome,path, preprocessed)
         ], ignore_index=True)
 
     print(f"Read a total of {str(len(combined_df))}")
 
+    if preprocessed:
+        combined_df = combined_df[(combined_df['maf']>= maf_threshold) & (combined_df['hwe'] >= hwe_threshold)]
+        print(f"After preprocessing step, {len(combined_df)} SNPs remain")
+
+
     return combined_df
 
-def manhattan_plot(df: pd.DataFrame):
+def manhattan_plot(df: pd.DataFrame, preprocessed: bool =False):
     cumulative_offset = 0
     tick_positions = []
     peak_snps = []
@@ -38,7 +43,7 @@ def manhattan_plot(df: pd.DataFrame):
     chromosome_colors = ['#1f77b4', '#ff7f0e']
 
     for chromosome in unique_chromosomes:
-        chromosome_data = df[df['chromosome'] == chromosome]
+        chromosome_data = df[df['chromosome'] == chromosome &df['maf']>0.05] if preprocessed else df[df['chromosome'] == chromosome ]
         chromosome_data = chromosome_data.sort_values(by='position')
         df.loc[chromosome_data.index, 'cumulative_position'] = chromosome_data['position'] + cumulative_offset
 
@@ -82,9 +87,11 @@ def manhattan_plot(df: pd.DataFrame):
     plt.xticks(ticks=tick_positions, labels=unique_chromosomes)
     plt.xlabel('Chromosome')
     plt.ylabel('-log10(p-value)')
+    plt.ylim(0,60)
     plt.title('GWAS')
     plt.tight_layout()
     plt.show()
-    
-df = read_all_results()
+
+path = './data/preprocessed_full_AFR'
+df = read_all_results(path = path,preprocessed=True)
 manhattan_plot(df)

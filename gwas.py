@@ -311,7 +311,7 @@ def calculate_hwe_pvalue(snp: list[int]) -> float:
 
     return p_value
 
-def process_gwas(prefix: str, ancestry: str | None = None):
+def process_gwas(prefix: str, ancestry: str | None = None, saving_directory:str = "outputs/"):
     bim_path = prefix + '.bim'
     bed_path = prefix + '.bed'
     fam_path = prefix + '.fam'
@@ -362,5 +362,5 @@ def process_gwas(prefix: str, ancestry: str | None = None):
             print(f"{snp_name} somehow no hwe")
             hwe_pvalue = -1.0
 
-        with (open(f'outputs_EUR2/{prefix}.csv', 'a')) as file:
+        with (open(saving_directory + f'{prefix}.csv', 'a')) as file:
             file.write(f'{snp_name},{pvalue},{maf},{hwe_pvalue}\n')
